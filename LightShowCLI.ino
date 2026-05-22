@@ -1,7 +1,7 @@
 #include <Adafruit_NeoPixel.h>
 #include <EEPROM.h>
 #include "Matrix.h"
-
+ 
 #define LED_PIN 6
 #define FRAME_COUNT 14
 #define MAX_HISTORY 25
