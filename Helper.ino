@@ -258,3 +258,61 @@ void addToCommandHistory(const char command[3], const char *params)
     Serial.println("> Command history full. New commands will overwrite the latest.");
   }
 }
+
+#define PARITY_EVEN 2
+#define PARITY_ODD 1
+#define PARITY_ALL 0
+
+struct RangeData
+{
+  uint8_t from;
+  uint8_t to;
+  uint8_t parity;
+};
+
+RangeData parseRange(uint8_t maxValue)
+{
+  int8_t from = Serial.parseInt();
+  int8_t to = from;
+  int8_t isEvenOdd = PARITY_ALL;
+  if (Serial.peek() == 'o' || Serial.peek() == 'e' || from != -1)
+  {
+    if (Serial.peek() == 'o')
+    {
+      Serial.read();
+      isEvenOdd = PARITY_ODD;
+      from = Serial.parseInt();
+      to = from;
+      Serial.print("o");
+    }
+    else if (Serial.peek() == 'e')
+    {
+      Serial.read();
+      isEvenOdd = PARITY_EVEN;
+      from = Serial.parseInt();
+      to = from;
+      Serial.print("e");
+    }
+    else
+    {
+      Serial.print(from);
+    }
+    if (Serial.peek() == '-')
+    {
+      Serial.read();
+      to = Serial.parseInt();
+      Serial.print("-" + String(to));
+    }
+    if (Serial.peek() == ' ')
+    {
+      Serial.read();
+    }
+  }
+  else
+  {
+    Serial.print("");
+    return {0, maxValue, 0};
+  }
+  Serial.print(" ");
+  return {static_cast<uint8_t>(constrain(from, 0, maxValue)), static_cast<uint8_t>(constrain(to, 0, maxValue)), static_cast<uint8_t>(isEvenOdd)};
+}
