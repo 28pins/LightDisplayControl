@@ -6,15 +6,9 @@ void innerLoop(int i)
   {
     if (cycleDelay[i] == 254)
     {
-      // special text parity
+      // special text code
       uint16_t color = colors[i][0];
-      for (uint8_t j = 1; j < LED_COUNT; j++)
-      {
-        if (text[colors[i][j]])
-        {
-          strip.setPixelColor(j - 1, c(color));
-        }
-      }
+      // TODO!
     }
     else
     {
@@ -293,7 +287,11 @@ void serialLoop()
       Serial.print(text);
       Serial.println();
       colors[frame][0] = color;
-      cycleDelay[frame] = 254; // special delay value to indicate text parity
+      cycleDelay[frame] = 254; // special delay value to indicate text
+      for (uint8_t i = 0; i < LED_COUNT; i++)
+      {
+        colors[frame][i] = 0;
+      }
       for (uint8_t i = 0; i < text.length() && i < LED_COUNT - 1; i++)
       {
         colors[frame][i + 1] = text.charAt(i);
