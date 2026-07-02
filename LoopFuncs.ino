@@ -345,7 +345,9 @@ void serialHandle(){
           Serial.println(LED_COUNT);
           Serial.print("#define FRAME_COUNT ");
           Serial.println(FRAME_COUNT);
-          Serial.println(F("#include <Adafruit_NeoPixel.h>\n#define LED_PIN 2\nAdafruit_NeoPixel strip(LED_COUNT, LED_PIN, NEO_RGB + NEO_KHZ800"));
+          Serial.print("#define OFFSET ");
+          Serial.println(OFFSET);
+          Serial.println(F("#include <Adafruit_NeoPixel.h>\n#define LED_PIN 2\nAdafruit_NeoPixel strip(LED_COUNT+OFFSET, LED_PIN, NEO_RGB + NEO_KHZ800"));
         }
         Serial.print("uint16_t cycleDelay[FRAME_COUNT] = {");
         for (uint16_t d = 0; d < FRAME_COUNT; d++) {
