@@ -24,7 +24,7 @@ void setup()
   Serial.begin(9600);
   Serial.println(F("> ####################> SERIAL LIGHT SHOW <####################"));
   toggleBuiltin();
-  Serial.println(F("> Version 0.0.0 [beta]"));
+  Serial.println(F("> Version 2.0.0 [beta]"));
   Serial.println(F("> **Warning:** Set line ending to `New Line` for proper parsing."));
   Serial.println(F("> Type `help` for help"));
   Serial.println("> Currently configured with " + String(LED_COUNT) + " LEDs and " + String(FRAME_COUNT) + " frames.  Feature flags: cacheCmds: NO; textDisp: NO; WiFi: NO");
