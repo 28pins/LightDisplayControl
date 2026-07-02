@@ -13,7 +13,7 @@ const uint8_t MATRIX[MATRIX_HEIGHT][MATRIX_WIDTH] PROGMEM = {
     {51, 50, 49, 48, 47, 46, 45, 44, 43, 42, 41, 40, 39},
     {52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64},
     {77, 76, 75, 74, 73, 72, 71, 70, 69, 68, 67, 66, 65}
-}; // 6 rows, 12 columns
+}; // 6 rows, 13 columns
 // #define TXT_ENABLED //Define this and add characters for display size
 /*
 #define MATRIX_WIDTH 7
