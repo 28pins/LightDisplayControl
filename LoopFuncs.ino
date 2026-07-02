@@ -85,7 +85,7 @@ void serialHandle(){
           }
           if (cmdM.startsWith("*")){
             from = 0;
-            to = FRAME_COUNT;
+            to = FRAME_COUNT - 1;
             cmdM = cmdM.substring(1);
           } else {
             from = parseInt(cmdM);
@@ -162,8 +162,10 @@ void serialHandle(){
                 if((parityX == 2) || (parityX == idX % 2)){
                   for (uint8_t idY = fromY; idY <= toY; idY++) {
                     if((parityY == 2) || (parityY == idY % 2)){
-                      colors[id][xyToIndex(idX, idY)] = 0;
-                      Serial.print(".");
+                      if(xyToIndex(idX, idY) != 255) {
+                        colors[id][xyToIndex(idX, idY)] = 0;
+                        Serial.print(".");
+                      }
                     }
                     delay(20);
                   }
@@ -189,7 +191,7 @@ void serialHandle(){
         }
         if (cmdM.startsWith("*")){
           from = 0;
-          to = FRAME_COUNT;
+          to = FRAME_COUNT - 1;
           cmdM = cmdM.substring(1);
         } else {
           from = parseInt(cmdM);
@@ -244,7 +246,7 @@ void serialHandle(){
         }
         if (cmdM.startsWith("*")){
           from = 0;
-          to = FRAME_COUNT;
+          to = FRAME_COUNT - 1;
           cmdM = cmdM.substring(1);
         } else {
           from = parseInt(cmdM);
@@ -324,8 +326,10 @@ void serialHandle(){
               if((parityX == 2) || (parityX == idX % 2)){
                 for (uint8_t idY = fromY; idY <= toY; idY++) {
                   if((parityY == 2) || (parityY == idY % 2)){
-                    colors[id][xyToIndex(idX, idY)] = col;
-                    Serial.print(".");
+                    if (xyToIndex(idX, idY) != 255) {
+                      colors[id][xyToIndex(idX, idY)] = col;
+                      Serial.print(".");
+                    }
                   }
                   delay(20);
                 }
@@ -410,9 +414,12 @@ void loop()
           x = indToX(ind);
           y = indToY(ind);
         }
-        Serial.print("> LED with index " + ind);
-        Serial.print(" is at (" + x);
-        Serial.print(", " + y);
+        Serial.print("> LED with index ");
+        Serial.print(ind);
+        Serial.print(" is at (");
+        Serial.print(x);
+        Serial.print(", ");
+        Serial.print(y);
         Serial.println(").");
       } else if (cmdM.startsWith("mtx")) {
         bool printNums = false;
