@@ -4,6 +4,7 @@ This code lets you control a matrix or string of RGB leds from a Mega or ESP boa
 Upload the code and type help in the Serial monitor to see all commands.
 Edit the Matrix.h file with your LED grid setup and the order of LEDs.
 
+**Warning: clearing your EEPROM is strongly advised before uploading program.**
 
 ### Features:
 - Create a custom matrix setup and reference pixels by (x, y)
