@@ -10,7 +10,7 @@ void colorLoop(uint8_t i)
 }
 
 void serialHandle(){
-  if(Serial.available() == -1) return;
+  if(Serial.available() == 0) return;
   delay(200);
   String cmd = "";
   String cmdNext = "";
