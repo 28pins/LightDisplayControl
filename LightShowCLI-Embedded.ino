@@ -1,10 +1,6 @@
 #include <Adafruit_NeoPixel.h>
 #include <EEPROM.h>
 #include "Matrix.h"
- 
-#define PARITY_EVEN 2
-#define PARITY_ODD 1
-#define PARITY_ALL 0
 
 bool LEDBuiltinOn = false;
 
