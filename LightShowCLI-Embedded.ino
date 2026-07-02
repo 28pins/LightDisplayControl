@@ -17,8 +17,8 @@ Adafruit_NeoPixel strip(LED_COUNT + OFFSET, LED_PIN, NEO_RGB + NEO_KHZ800);
 
 void setup()
 {
+  pinMode(LED_BUILTIN, OUTPUT);
   toggleBuiltin();
-  pinMode(13, OUTPUT);
   strip.begin();
   strip.show();
   Serial.begin(9600);
