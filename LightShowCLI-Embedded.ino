@@ -13,7 +13,7 @@ uint16_t delayLast[FRAME_COUNT];
 uint16_t colors[FRAME_COUNT][LED_COUNT];
 uint16_t colorsLast[FRAME_COUNT][LED_COUNT];
 
-Adafruit_NeoPixel strip(LED_COUNT, LED_PIN, NEO_RGB + NEO_KHZ800);
+Adafruit_NeoPixel strip(LED_COUNT + OFFSET, LED_PIN, NEO_RGB + NEO_KHZ800);
 
 void setup()
 {
