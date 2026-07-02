@@ -19,4 +19,5 @@ Edit the Matrix.h file with your LED grid setup and the order of LEDs.
 ### Roadmap
 - Text support
 - Wifi/web server on esp
+- Proper flashing of builtin LED and exact delay
 - Export last commands (on esp)
