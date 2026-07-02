@@ -378,7 +378,7 @@ void setup()
 }
 void loop()
 {
-  for (uint8_t i = 0; i < FRAME_COUNT) {
+  for (uint8_t i = 0; i < FRAME_COUNT; i++) {
     if (cycleDelay[i] != 0)
       {
         for (uint8_t k = 0; k < LED_COUNT; k++)
