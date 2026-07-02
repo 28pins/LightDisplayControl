@@ -43,10 +43,10 @@ void serialHandle(){
 > clr <[o/e]frame[-frame2]> ([o/e]<x[-x2]>, [o/e]<y[-y2]>) - Clear a specific LED or series in a specific frame.  Use o/e before a series to only apply to the odd or even indexed LEDs.  Use - to specify a range of frames or LEDs.
 > clr <[o/e]frame[-frame2]> - Clear all LEDs in a specific frame
 > dly <[o/e]frame[-frame2]> <delay> - Set the delay for a specific frame or series of frames.  Enter in ms.  Use o/e before a series to only apply to the odd or even indexed frames.  Use - to specify a range of frames.
-> txt <frame> <color 0-999> <text> - Display scrolling text on the display in place of a specific frame.
+> [beta only] txt <frame> <color 0-999> <text> - Display scrolling text on the display in place of a specific frame.
 > print - Prints all previous commands since the last `clr` command.
 > mtx [-n] - Display an ASCII representation of the LED matrix (-n gives LED IDs)
-> export [—program] - Exports a C array of the current colors and delays for all frames, which can be copied into the program for static displays. (optionally as a program)
+> export [-—program] - Exports a C array of the current colors and delays for all frames, which can be copied into the program for static displays. (optionally as a program)
 > help - Displays this help message.
 > idx n - (x, y) of LED n
 > idx (x, y) - number of LED at (x, y)
@@ -347,7 +347,7 @@ void serialHandle(){
           Serial.println(FRAME_COUNT);
           Serial.print("#define OFFSET ");
           Serial.println(OFFSET);
-          Serial.println(F("#include <Adafruit_NeoPixel.h>\n#define LED_PIN 2\nAdafruit_NeoPixel strip(LED_COUNT+OFFSET, LED_PIN, NEO_RGB + NEO_KHZ800"));
+          Serial.println(F("#include <Adafruit_NeoPixel.h>\n#define LED_PIN 2\nAdafruit_NeoPixel strip(LED_COUNT+OFFSET, LED_PIN, NEO_RGB + NEO_KHZ800);"));
         }
         Serial.print("uint16_t cycleDelay[FRAME_COUNT] = {");
         for (uint16_t d = 0; d < FRAME_COUNT; d++) {
@@ -356,7 +356,7 @@ void serialHandle(){
             Serial.print(", ");
           }
         }
-        Serial.print("};\nuint16_t colors[FRAME_COUNT] = {\n");
+        Serial.print("};\nuint16_t colors[FRAME_COUNT][LED_ = {\n");
         for (uint16_t d = 0; d < FRAME_COUNT; d++) {
           Serial.print("{");
           for (uint16_t e = 0; e < LED_COUNT; e++) {
@@ -400,6 +400,7 @@ void loop()
         cmdM = cmdM.substring(4);
         uint8_t x, y, ind = 0;
         if(cmdM.startsWith("(")) {
+          cmdM = cmdM.substring(1);
           x = parseInt(cmdM);
           cmdM = cmdM.substring(parseIntCharsToBurn(cmdM) + 2);
           y = parseInt(cmdM);
