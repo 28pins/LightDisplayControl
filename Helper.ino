@@ -178,14 +178,22 @@ uint8_t xyToIndex(int x, int y)
 {
   if (x < 0 || x >= MATRIX_WIDTH || y < 0 || y >= MATRIX_HEIGHT)
   {
-    Serial.println("> Warning: xyToIndex: 'cell (" + String(x) + "," + String(y) + ") is out of bounds'");
+    Serial.print(F("> Warning: xyToIndex: 'cell ("));
+    Serial.print(x);
+    Serial.print(F(","));
+    Serial.print(y);
+    Serial.println(F(") is out of bounds'"));
     return 255;
   }
 
   uint8_t index = pgm_read_byte(&(MATRIX[y][x]));
   if (index == 255)
   {
-    Serial.println("> Warning: xyToIndex: 'cell (" + String(x) + "," + String(y) + ") is empty'");
+    Serial.print(F("> Warning: xyToIndex: 'cell ("));
+    Serial.print(x);
+    Serial.print(F(","));
+    Serial.print(y);
+    Serial.println(F(") is empty'"));
     return 255;
   }
   return index;
@@ -213,19 +221,20 @@ uint8_t indToY(uint8_t ind){
   return 255;
 }
 
-String extractCmd(String in){
-  while (in.indexOf('\n') != -1) {
-    in = in.substring(0, in.indexOf('\n'));
+String extractCmd(const String& in){
+  String out = in;
+  while (out.indexOf('\n') != -1) {
+    out = out.substring(0, out.indexOf('\n'));
   }
-  uint8_t idxStr = in.indexOf(' ');
+  uint8_t idxStr = out.indexOf(' ');
   if(idxStr == -1){
-    return in;
+    return out;
   } else {
-    return in.substring(0, idxStr);
+    return out.substring(0, idxStr);
   }
 }
 
-uint8_t parseIntCharsToBurn(String s) {
+uint8_t parseIntCharsToBurn(const String& s) {
   uint8_t parseIntIdx = 0;
   bool shouldFinish = false;
   while (!shouldFinish) {
@@ -238,14 +247,14 @@ uint8_t parseIntCharsToBurn(String s) {
   return parseIntIdx;
 }
 
-int parseInt(String s) {
+int parseInt(const String& s) {
   uint8_t parseIntIdx = 0;
   int out = 0;
   bool shouldFinish = false;
   while (!shouldFinish) {
     if (isDigit(s.charAt(parseIntIdx))) {
       out *= 10;
-      out += s.substring(parseIntIdx, parseIntIdx + 1).toInt();
+      out += s.charAt(parseIntIdx) - '0';
       parseIntIdx++;
     } else {
       shouldFinish = true;
