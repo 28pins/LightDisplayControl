@@ -1,10 +1,8 @@
-[![Bambu Lab](https://img.shields.io/badge/Available%20On-MakerWorld-00AE42?style=for-the-badge&logo=bambulab&logoColor=white)](https://www.makerworld.com/en/@Sam_p1s)
-
 This code lets you control a matrix or string of RGB leds from a Mega or ESP board using a Serial CLI-like command set.
 Upload the code and type help in the Serial monitor to see all commands.
 Edit the Matrix.h file with your LED grid setup and the order of LEDs.
 
-**Warning: clearing your EEPROM is strongly advised before uploading program.**
+**Warning: clearing your EEPROM is advised before uploading program.**
 
 ### Features:
 - Create a custom matrix setup and reference pixels by (x, y)
@@ -15,9 +13,8 @@ Edit the Matrix.h file with your LED grid setup and the order of LEDs.
 - Supports offset for repeater pixels
 - Simple RGB color code system 0-999, one color per digit
 - Export color arrays or complete program for use on 328 chips
+- Scroll text across the display
 
 ### Roadmap
-- Text support
 - Wifi/web server on esp
-- Proper flashing of builtin LED and exact delay
-- Export last commands (on esp)
+- Import array
