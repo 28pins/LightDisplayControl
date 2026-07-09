@@ -1,8 +1,6 @@
 #include <EEPROM.h>
 #include <Adafruit_NeoPixel.h>
 
-/// @brief Helper functions for the LED strip.
-
 /// @brief Loads the last saved colors and delays into the current arrays.
 void loadLast()
 {
@@ -20,6 +18,23 @@ void loadLast()
     cycleDelay[k] = buf;
   }
 }
+
+void printNumPadded(uint16_t in) {
+  if(in == 255) {
+    Serial.print("---"); //Special case in matrix printing
+  } else if (in < 10) {
+    Serial.print(" ");
+    Serial.print(in);
+    Serial.print(" ");
+  } else if (in < 100) {
+    Serial.print(" ");
+    Serial.print(in);
+  } else {
+    Serial.print(in);
+  }
+}
+
+
 
 /// @brief Saves the current colors and delays into the "last" arrays for potential later retrieval.  Call this before making changes to the current arrays if you want to be able to easily revert back to the previous state.
 void saveLast()
@@ -50,7 +65,6 @@ void clear()
 }
 
 /// @brief Clears the colors for a specific frame.
-/// @param k The frame index to clear.
 void clear(uint8_t k)
 {
   for (uint8_t l = 0; l < LED_COUNT; l++)
@@ -62,24 +76,17 @@ void clear(uint8_t k)
 }
 
 ///@brief Generates a color.
-///@param r Red [0-255]
-///@param g Green [0-255]
-///@param b Blue [0-255]
 uint32_t c(uint8_t r, uint8_t g, uint8_t b)
 {
   return strip.Color(r, g, b);
 }
 
 ///@brief Generates black color.
-///@param void
 uint32_t c()
 {
   return strip.Color(0, 0, 0);
 }
 
-///@brief Generates a color from a three digit number (0-999).
-///@param in The number to break down [digit 1 r, 2 g, 3 b]
-///@param silent Silence Serial output; default true
 uint32_t c(uint32_t in, bool silent = true)
 {
 
@@ -97,24 +104,24 @@ uint32_t c(uint32_t in, bool silent = true)
 
   if (r == 1)
   {
-    newr = 10;
+    newr = 6;
   }
 
   if (g == 1)
   {
-    newg = 10;
+    newg = 6;
   }
 
   if (b == 1)
   {
-    newb = 10;
+    newb = 6;
   }
 
   if (!silent)
   {
     Serial.print("> Color code `");
     Serial.print(in);
-    Serial.print(": rgb(");
+    Serial.print("`: rgb(");
     Serial.print(newr);
     Serial.print(", ");
     Serial.print(newg);
@@ -157,162 +164,92 @@ void clearEEPROM()
   }
 }
 
-bool burnSerial(const char *shouldMatch, unsigned long timeoutMs = 500)
-{
-  if (!shouldMatch)
-    return false;
-
-  size_t len = strlen(shouldMatch);
-  if (len == 0)
-    return true;
-
-  unsigned long start = millis();
-  size_t idx = 0;
-
-  while (idx < len && (millis() - start) < timeoutMs)
-  {
-    if (Serial.available() == 0)
-      continue; // wait for data until timeout
-
-    int c = Serial.peek();
-    if (c < 0)
-      continue;
-
-    if ((char)c == shouldMatch[idx])
-    {
-      idx++;
-      Serial.read();
-    }
-    else
-    {
-      return false;
-    }
+void toggleBuiltin(){
+  if (LEDBuiltinOn) {
+    digitalWrite(LED_BUILTIN, LOW);
+  } else {
+    digitalWrite(LED_BUILTIN, HIGH);
   }
-
-  return (idx == len);
-}
-
-bool burnSerialSeparator(unsigned long timeoutMs = 500)
-{
-  unsigned long start = millis();
-
-  while ((millis() - start) < timeoutMs)
-  {
-    if (Serial.available() == 0)
-      continue; // wait for data until timeout
-
-    int c = Serial.peek();
-    if (c < 0)
-      continue;
-
-    if ((char)c == '0' || (char)c == '1' || (char)c == '2' || (char)c == '3' || (char)c == '4' || (char)c == '5' || (char)c == '6' || (char)c == '7' || (char)c == '8' || (char)c == '9')
-    {
-      return false;
-    }
-    else
-    {
-      Serial.read();
-      return true;
-    }
-  }
-
-  return true;
+  LEDBuiltinOn = !LEDBuiltinOn;
 }
 
 /// @brief Transforms an x and y value into an LED index based on the MATRIX array.
-/// @param x The x value
-/// @param y The y value
-/// @return The LED index corresponding to the x and y values; 0 and Serial warning if the cell is empty or out of bounds.
 uint8_t xyToIndex(int x, int y)
 {
   if (x < 0 || x >= MATRIX_WIDTH || y < 0 || y >= MATRIX_HEIGHT)
   {
     Serial.println("> Warning: xyToIndex: 'cell (" + String(x) + "," + String(y) + ") is out of bounds'");
-    return 0;
+    return 255;
   }
 
-  uint8_t index = pgm_read_byte(&(MATRIX[x][y]));
+  uint8_t index = pgm_read_byte(&(MATRIX[y][x]));
   if (index == 255)
   {
     Serial.println("> Warning: xyToIndex: 'cell (" + String(x) + "," + String(y) + ") is empty'");
-    return 0;
+    return 255;
   }
   return index;
 }
 
-/// @brief Adds a command and its parameters to the command history.
-/// @param command The command string to add to the history.
-void addToCommandHistory(const char command[3], const char *params)
-{
-  String fullCommand = String(command) + " " + String(params);
-  fullCommand.trim();
-  strncpy(commandHistory[commandHistoryIndex], fullCommand.c_str(), HISTORY_MAX_LEN - 1);
-  commandHistory[commandHistoryIndex][HISTORY_MAX_LEN - 1] = '\0'; // Ensure null termination
-  commandHistoryIndex = (commandHistoryIndex + 1) % MAX_HISTORY;
-  if (commandHistoryCount < MAX_HISTORY)
-  {
-    commandHistoryCount++;
+uint8_t indToX(uint8_t ind){
+  for(uint8_t y = 0; y < MATRIX_HEIGHT; y++){
+    for(uint8_t x = 0; x < MATRIX_WIDTH; x++){
+      if(pgm_read_byte(&(MATRIX[y][x])) == ind){
+        return x;
+      }
+    }
   }
-  else
-  {
-    Serial.println("> Command history full. New commands will overwrite the latest.");
+  return 255;
+}
+
+uint8_t indToY(uint8_t ind){
+  for(uint8_t y = 0; y < MATRIX_HEIGHT; y++){
+    for(uint8_t x = 0; x < MATRIX_WIDTH; x++){
+      if(pgm_read_byte(&(MATRIX[y][x])) == ind){
+        return y;
+      }
+    }
+  }
+  return 255;
+}
+
+String extractCmd(String in){
+  while (in.indexOf('\n') != -1) {
+    in = in.substring(0, in.indexOf('\n'));
+  }
+  uint8_t idxStr = in.indexOf(' ');
+  if(idxStr == -1){
+    return in;
+  } else {
+    return in.substring(0, idxStr);
   }
 }
 
-#define PARITY_EVEN 2
-#define PARITY_ODD 1
-#define PARITY_ALL 0
-
-struct RangeData
-{
-  uint8_t from;
-  uint8_t to;
-  uint8_t parity;
-};
-
-RangeData parseRange(uint8_t maxValue)
-{
-  int8_t from = Serial.parseInt();
-  int8_t to = from;
-  int8_t isEvenOdd = PARITY_ALL;
-  if (Serial.peek() == 'o' || Serial.peek() == 'e' || from != -1)
-  {
-    if (Serial.peek() == 'o')
-    {
-      Serial.read();
-      isEvenOdd = PARITY_ODD;
-      from = Serial.parseInt();
-      to = from;
-      Serial.print("o");
-    }
-    else if (Serial.peek() == 'e')
-    {
-      Serial.read();
-      isEvenOdd = PARITY_EVEN;
-      from = Serial.parseInt();
-      to = from;
-      Serial.print("e");
-    }
-    else
-    {
-      Serial.print(from);
-    }
-    if (Serial.peek() == '-')
-    {
-      Serial.read();
-      to = Serial.parseInt();
-      Serial.print("-" + String(to));
-    }
-    if (Serial.peek() == ' ')
-    {
-      Serial.read();
+uint8_t parseIntCharsToBurn(String s) {
+  uint8_t parseIntIdx = 0;
+  bool shouldFinish = false;
+  while (!shouldFinish) {
+    if (isDigit(s.charAt(parseIntIdx))) {
+      parseIntIdx++;
+    } else {
+      shouldFinish = true;
     }
   }
-  else
-  {
-    Serial.print("");
-    return {0, maxValue, 0};
+  return parseIntIdx;
+}
+
+int parseInt(String s) {
+  uint8_t parseIntIdx = 0;
+  int out = 0;
+  bool shouldFinish = false;
+  while (!shouldFinish) {
+    if (isDigit(s.charAt(parseIntIdx))) {
+      out *= 10;
+      out += s.substring(parseIntIdx, parseIntIdx + 1).toInt();
+      parseIntIdx++;
+    } else {
+      shouldFinish = true;
+    }
   }
-  Serial.print(" ");
-  return {static_cast<uint8_t>(constrain(from, 0, maxValue)), static_cast<uint8_t>(constrain(to, 0, maxValue)), static_cast<uint8_t>(isEvenOdd)};
+  return out;
 }
