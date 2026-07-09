@@ -59,9 +59,9 @@ void clear()
       colors[k][l] = 0;
     }
     cycleDelay[k] = 0;
-    strip.clear();
-    strip.show();
   }
+  strip.clear();
+  strip.show();
 }
 
 /// @brief Clears the colors for a specific frame.

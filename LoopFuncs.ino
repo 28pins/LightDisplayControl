@@ -194,6 +194,7 @@ void serialHandle(){
           } else {
             to = from;
           }
+          Serial.println("\n> Cleared requested LEDs.");
         }
         saveLast();
         for (uint8_t id = from; id <= to; id++) {
@@ -347,6 +348,8 @@ void serialHandle(){
                 toY = fromY;
               }
             }
+          } else {
+            to = from;
           }
 
           Serial.print("> Clearing");
@@ -455,6 +458,7 @@ void serialHandle(){
           } else {
             to = from;
           }
+          cmdM = cmdM.substring(2);
         }
 
         cmdM.remove(0, 1); //burn space
@@ -572,7 +576,7 @@ void setup()
 }
 void loop()
 {
-  for (uint8_t i = 0; i < FRAME_COUNT) {
+  for (uint8_t i = 0; i < FRAME_COUNT; i++) {
     if (cycleDelay[i] != 0)
       {
         for (uint8_t k = 0; k < LED_COUNT; k++)

@@ -1,10 +1,6 @@
 #include <Adafruit_NeoPixel.h>
 #include <EEPROM.h>
 #include "Matrix.h"
- 
-#define PARITY_EVEN 2
-#define PARITY_ODD 1
-#define PARITY_ALL 0
 
 bool LEDBuiltinOn = false;
 
@@ -13,25 +9,21 @@ uint16_t delayLast[FRAME_COUNT];
 uint16_t colors[FRAME_COUNT][LED_COUNT];
 uint16_t colorsLast[FRAME_COUNT][LED_COUNT];
 
-Adafruit_NeoPixel strip(LED_COUNT, LED_PIN, NEO_RGB + NEO_KHZ800);
+Adafruit_NeoPixel strip(LED_COUNT + OFFSET, LED_PIN, NEO_RGB + NEO_KHZ800);
 
 void setup()
 {
+  pinMode(LED_BUILTIN, OUTPUT);
   toggleBuiltin();
-  pinMode(13, OUTPUT);
   strip.begin();
   strip.show();
   Serial.begin(9600);
   Serial.println(F("> ####################> SERIAL LIGHT SHOW <####################"));
   toggleBuiltin();
-  Serial.println(F("> Version 0.0.0 [beta]"));
+  Serial.println(F("> Version 1.1.0"));
   Serial.println(F("> **Warning:** Set line ending to `New Line` for proper parsing."));
   Serial.println(F("> Type `help` for help"));
-  Serial.print(F("> Currently configured with "));
-  Serial.print(LED_COUNT);
-  Serial.print(F(" LEDs and "));
-  Serial.print(FRAME_COUNT);
-  Serial.println(F(" frames.  Feature flags: cacheCmds: NO; textDisp: NO; WiFi: NO"));
+  Serial.println("> Currently configured with " + String(LED_COUNT) + " LEDs and " + String(FRAME_COUNT) + " frames.");
   toggleBuiltin();
   if (loadEEPROM())
   {
