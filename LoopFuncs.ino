@@ -1,3 +1,4 @@
+#include "Matrix.h"
 /// @brief Runs the inner loop for a given frame index, displaying the colors and applying the delay.
 /// @param i The frame index to run.
 void colorLoop(uint8_t i)
@@ -9,11 +10,86 @@ void colorLoop(uint8_t i)
   strip.show();
 }
 
+void textLoop(uint8_t i) {
+  uint16_t renderWidth = MATRIX_WIDTH;
+  for (uint8_t ind = 1; ind < LED_COUNT; ind++) {
+    if (colors[i][ind] == '-') {
+      renderWidth += 3;
+    } else if (colors[i][ind] != 0) {
+      uint8_t charIdx = charToIndex(colors[i][ind]);
+      for (int8_t shift = 5; shift >= 0; shift--) {
+        bool hasSeen1ThisShift = false;
+        for (uint8_t height = 0; height < MATRIX_HEIGHT; height++) {
+          uint8_t glyphRow = pgm_read_byte(&(characters[charIdx][height]));
+          if ((glyphRow >> shift) & 1) {
+            hasSeen1ThisShift = true;
+          }
+        }
+        if (hasSeen1ThisShift) {
+          renderWidth++;
+        }
+      }
+      renderWidth++;
+    } else {
+      break;
+    }
+  }
+
+  bool *rendered = new bool[MATRIX_HEIGHT * renderWidth]();
+  uint16_t renderStart = MATRIX_WIDTH;
+  for (uint8_t ind = 1; ind < LED_COUNT; ind++) {
+    if(colors[i][ind] == '-'){
+      renderStart += 3;
+    } else if (colors[i][ind] != 0) {
+          uint8_t charIdx = charToIndex(colors[i][ind]);
+          for (int8_t shift = 5; shift >= 0; shift--) {
+        bool hasSeen1ThisShift = false;
+        for (uint8_t height = 0; height < MATRIX_HEIGHT; height++) {
+          uint16_t colIdx = renderStart;
+              uint8_t glyphRow = pgm_read_byte(&(characters[charIdx][height]));
+              if ((glyphRow >> shift) & 1) {
+            hasSeen1ThisShift = true;
+            if (colIdx < renderWidth) {
+              rendered[(MATRIX_HEIGHT - height - 1) * renderWidth + colIdx] = 1; //Assumes (0, 0) is top left; use `rendered[height][colIdx] for bottom left (0, 0)`
+            }
+          }
+        }
+        if(hasSeen1ThisShift) {
+          renderStart++;
+        }
+      }
+      renderStart++; //Space
+    } else {
+      break;
+    }
+  }
+  renderWidth = renderStart;
+  for (uint16_t h = 0; h < renderWidth + MATRIX_WIDTH; h++) {
+    strip.clear();
+    for (uint16_t j = 0; j < MATRIX_WIDTH; j++) {
+      for (uint8_t k = 0; k < MATRIX_HEIGHT; k++) {
+        if ((h + j) < renderWidth && rendered[k * renderWidth + h + j] && (h < renderWidth) && colors[i][0] != 0) {
+          strip.setPixelColor(xyToIndex(j, k) + OFFSET, c(colors[i][0]));
+        } else {
+          strip.setPixelColor(xyToIndex(j, k) + OFFSET, 0);
+        }
+      }
+    }
+    strip.show();
+    delay(200);
+    serialHandle();
+  }
+
+  delete[] rendered;
+}
+
 void serialHandle(){
-  if(Serial.available() == -1) return;
+  if(Serial.available() <= 0) return;
   delay(200);
   String cmd = "";
   String cmdNext = "";
+  cmd.reserve(192);
+  cmdNext.reserve(192);
   uint8_t parseIdx = 0;
   bool mustReParse = false;
   while(Serial.available() > 0 || mustReParse){
@@ -27,25 +103,29 @@ void serialHandle(){
       int indNextCmd = cmd.indexOf(" && ");
       if(indNextCmd > 0) {
         mustReParse = true;
-        cmdNext = cmd.substring(indNextCmd + 4);
-        cmdM = cmd.substring(0, indNextCmd);
+        cmdNext = cmd;
+        cmdNext.remove(0, indNextCmd + 4);
+        cmdM = cmd;
+        cmdM.remove(indNextCmd);
       } else {
         mustReParse = false;
         cmdNext = "";
       }
-      Serial.print("< " + cmdM);
+      Serial.print(F("< "));
+      Serial.print(cmdM);
       //Crawl command!
       if (cmdM.startsWith("help")) {
         Serial.println(F(R"(
 > Help: --------------------------
+> <param> is entered as param!
 > * - All available options in a range
 > set <[o/e]frame[-frame2]> ([o/e]<x[-x2]>, [o/e]<y[-y2]>) <color 0-999> - Set a specific LED or series in a specific frame to a color.  Use o/e before a series to only apply to the odd or even indexed LEDs.  Use - to specify a range of frames or LEDs.
 > clr <[o/e]frame[-frame2]> ([o/e]<x[-x2]>, [o/e]<y[-y2]>) - Clear a specific LED or series in a specific frame.  Use o/e before a series to only apply to the odd or even indexed LEDs.  Use - to specify a range of frames or LEDs.
 > clr <[o/e]frame[-frame2]> - Clear all LEDs in a specific frame
 > dly <[o/e]frame[-frame2]> <delay> - Set the delay for a specific frame or series of frames.  Enter in ms.  Use o/e before a series to only apply to the odd or even indexed frames.  Use - to specify a range of frames.
-> txt <frame> <color 0-999> <text> - Display scrolling text on the display in place of a specific frame.
+> text <frame> <color 0-999> <text> - Display scrolling text on the display in place of a specific frame.  Use '-' as a space.  All letters are displayed as uppercase.  use only [a-z][A-Z][0-9] and !.
 > print - Prints all previous commands since the last `clr` command.
-> mtx [-n] - Display an ASCII representation of the LED matrix (-n gives LED IDs)
+> mtx [-c <frame>][-n] - Display an ASCII representation of the LED matrix (-n gives LED IDs)
 > export [—program] - Exports a C array of the current colors and delays for all frames, which can be copied into the program for static displays. (optionally as a program)
 > help - Displays this help message.
 > idx n - (x, y) of LED n
@@ -56,13 +136,127 @@ void serialHandle(){
 > && - Used to chain multiple commands together.  Example: `dly 0-4 500 && txt 0 Hello 555` sets frames 0-4 to a delay of 500ms and sets frame 0 to display "Hello" in color code 555.
 > wrt - Writes the current frames and delays to EEPROM for retrieval on the next startup.
 > rgb <color 0-999> - Replies with the RGB values for a specific color code.
+> swap <[o/e]frame[-frame2]> <from> <to> - replaces all instances of <from> leds on a given frame with <to> leds
+> copy <frameFrom> <[o/e]frameTo[-frameToEnd]> - duplicates a frame to a given frame range 
 )"));
+      } else if (cmdM.startsWith("text")) {
+        cmdM.remove(0, 5);
+        uint8_t f = parseInt(cmdM);
+        cmdM.remove(0, parseIntCharsToBurn(cmdM)+1);
+        for(uint8_t x = 0; x < LED_COUNT; x++){
+          colors[f][x] = 0;
+        }
+        colors[f][0] = parseInt(cmdM);
+        cmdM.remove(0, parseIntCharsToBurn(cmdM)+1);
+        cycleDelay[f] = 254; //Special code
+        uint8_t in = 1;
+        char c = 'a';
+        Serial.print("> Recording text: ");
+        while (c != '\n') {
+          c = cmdM[0];
+          cmdM.remove(0, 1);
+          if(c != 10){
+            colors[f][in] = c;
+          }
+          in++;
+          const char cx = c;
+          Serial.print(cx);
+        }
+        Serial.println();
+      } else if (cmdM.startsWith("copy")) {
+        uint8_t from = 0;
+        uint8_t to = 0;
+        uint8_t parity = 2;
+        cmdM.remove(0, 5);
+        uint8_t source = parseInt(cmdM);
+        cmdM.remove(0, parseIntCharsToBurn(cmdM)+1);
+        if(cmdM.startsWith("o")) {
+          parity = 1;
+          cmdM.remove(0, 1);
+        } else if (cmdM.startsWith("e")) {
+          parity = 0;
+          cmdM.remove(0, 1);
+        }
+        if (cmdM.startsWith("*")){
+          from = 0;
+          to = FRAME_COUNT;
+          cmdM.remove(0, 1);
+        } else {
+          from = parseInt(cmdM);
+          cmdM.remove(0, parseIntCharsToBurn(cmdM));
+          if (cmdM.startsWith("-")) {
+            cmdM.remove(0, 1);
+            to = parseInt(cmdM);
+            cmdM.remove(0, parseIntCharsToBurn(cmdM));
+            if (to < from) {
+              to = from;
+            }
+          } else {
+            to = from;
+          }
+        }
+        saveLast();
+        for (uint8_t id = from; id <= to; id++) {
+          if((parity == 2) || (parity == id % 2)){
+            for (uint8_t co = 0; co < LED_COUNT; co++) {
+              colors[id][co] = colors[source][co];
+            }
+          }
+          delay(100);
+        }
+        Serial.println("> Done.");
+      } else if (cmdM.startsWith("swap")) {
+        uint8_t from = 0;
+        uint8_t to = 0;
+        uint8_t parity = 2;
+        cmdM.remove(0, 5);
+        if(cmdM.startsWith("o")) {
+          parity = 1;
+          cmdM.remove(0, 1);
+        } else if (cmdM.startsWith("e")) {
+          parity = 0;
+          cmdM.remove(0, 1);
+        }
+        if (cmdM.startsWith("*")){
+          from = 0;
+          to = FRAME_COUNT;
+          cmdM.remove(0, 1);
+        } else {
+          from = parseInt(cmdM);
+          cmdM.remove(0, parseIntCharsToBurn(cmdM));
+          if (cmdM.startsWith("-")) {
+            cmdM.remove(0, 1);
+            to = parseInt(cmdM);
+            cmdM.remove(0, parseIntCharsToBurn(cmdM));
+            if (to < from) {
+              to = from;
+            }
+          } else {
+            to = from;
+          }
+        }
+        saveLast();
+        cmdM.remove(0, 1); //burn space
+        uint16_t from2 = parseInt(cmdM);
+        cmdM.remove(0, parseIntCharsToBurn(cmdM)+1); //burn space
+        uint16_t to2 = parseInt(cmdM);
+        for (uint8_t id = from; id <= to; id++) {
+          if((parity == 2) || (parity == id % 2)){
+            for (uint8_t co = 0; co < LED_COUNT; co++) {
+              if (colors[id][co] == from2) {
+                colors[id][co] = to2;
+              }
+            }
+          }
+          delay(100);
+        }
+        Serial.println("> Done.");
       } else if (cmdM.startsWith("clr")) {
         if (cmdM.length() < 6) {
           saveLast();
           clear();
           Serial.println("> All light data cleared; `undo` to revert.");
-        } else if (cmdM.substring(4, 6).startsWith("-e")) {
+        } else if (cmdM.length() >= 6 && cmdM.charAt(4) == '-' && cmdM.charAt(5) == 'e') {
           clearEEPROM();
         } else {
           saveLast();
@@ -75,25 +269,25 @@ void serialHandle(){
           uint8_t fromY = 0;
           uint8_t toY = MATRIX_HEIGHT - 1;
           uint8_t parityY = 2;
-          cmdM = cmdM.substring(4);
+          cmdM.remove(0, 4);
           if(cmdM.startsWith("o")) {
             parity = 1;
-            cmdM = cmdM.substring(1);
+            cmdM.remove(0, 1);
           } else if (cmdM.startsWith("e")) {
             parity = 0;
-            cmdM = cmdM.substring(1);
+            cmdM.remove(0, 1);
           }
           if (cmdM.startsWith("*")){
             from = 0;
             to = FRAME_COUNT;
-            cmdM = cmdM.substring(1);
+            cmdM.remove(0, 1);
           } else {
             from = parseInt(cmdM);
-            cmdM = cmdM.substring(parseIntCharsToBurn(cmdM));
+            cmdM.remove(0, parseIntCharsToBurn(cmdM));
             if (cmdM.startsWith("-")) {
-              cmdM = cmdM.substring(1);
+              cmdM.remove(0, 1);
               to = parseInt(cmdM);
-              cmdM = cmdM.substring(parseIntCharsToBurn(cmdM));
+              cmdM.remove(0, parseIntCharsToBurn(cmdM));
               if (to < from) {
                 to = from;
               }
@@ -102,25 +296,25 @@ void serialHandle(){
             }
           }
 
-          cmdM = cmdM.substring(1); //burn space
+          cmdM.remove(0, 1); //burn space
           if (cmdM.startsWith("(")) {
-            cmdM = cmdM.substring(1);
+            cmdM.remove(0, 1);
             if(cmdM.startsWith("o")) {
               parityX = 1;
-              cmdM = cmdM.substring(1);
+              cmdM.remove(0, 1);
             } else if (cmdM.startsWith("e")) {
               parityX = 0;
-              cmdM = cmdM.substring(1);
+              cmdM.remove(0, 1);
             }
             if (cmdM.startsWith("*")){
-              cmdM = cmdM.substring(1);
+              cmdM.remove(0, 1);
             } else {
               fromX = parseInt(cmdM);
-              cmdM = cmdM.substring(parseIntCharsToBurn(cmdM));
+              cmdM.remove(0, parseIntCharsToBurn(cmdM));
               if (cmdM.startsWith("-")) {
-                cmdM = cmdM.substring(1);
+                cmdM.remove(0, 1);
                 toX = parseInt(cmdM);
-                cmdM = cmdM.substring(parseIntCharsToBurn(cmdM));
+                cmdM.remove(0, parseIntCharsToBurn(cmdM));
                 if (toX < fromX) {
                   toX = fromX;
                 }
@@ -129,23 +323,23 @@ void serialHandle(){
               }
             }
 
-            cmdM = cmdM.substring(2); //burn comma and space
+            cmdM.remove(0, 2); //burn comma and space
             if(cmdM.startsWith("o")) {
               parityY = 1;
-              cmdM = cmdM.substring(1);
+              cmdM.remove(0, 1);
             } else if (cmdM.startsWith("e")) {
               parityY = 0;
-              cmdM = cmdM.substring(1);
+              cmdM.remove(0, 1);
             }
             if (cmdM.startsWith("*")){
-              cmdM = cmdM.substring(1);
+              cmdM.remove(0, 1);
             } else {
               fromY = parseInt(cmdM);
-              cmdM = cmdM.substring(parseIntCharsToBurn(cmdM));
+              cmdM.remove(0, parseIntCharsToBurn(cmdM));
               if (cmdM.startsWith("-")) {
-                cmdM = cmdM.substring(1);
+                cmdM.remove(0, 1);
                 toY = parseInt(cmdM);
-                cmdM = cmdM.substring(parseIntCharsToBurn(cmdM));
+                cmdM.remove(0, parseIntCharsToBurn(cmdM));
                 if (toY < fromY) {
                   toY = fromY;
                 }
@@ -179,25 +373,25 @@ void serialHandle(){
         uint8_t from = 0;
         uint8_t to = 0;
         uint8_t parity = 2;
-        cmdM = cmdM.substring(4);
+        cmdM.remove(0, 4);
         if(cmdM.startsWith("o")) {
           parity = 1;
-          cmdM = cmdM.substring(1);
+          cmdM.remove(0, 1);
         } else if (cmdM.startsWith("e")) {
           parity = 0;
-          cmdM = cmdM.substring(1);
+          cmdM.remove(0, 1);
         }
         if (cmdM.startsWith("*")){
           from = 0;
           to = FRAME_COUNT;
-          cmdM = cmdM.substring(1);
+          cmdM.remove(0, 1);
         } else {
           from = parseInt(cmdM);
-          cmdM = cmdM.substring(parseIntCharsToBurn(cmdM));
+          cmdM.remove(0, parseIntCharsToBurn(cmdM));
           if (cmdM.startsWith("-")) {
-            cmdM = cmdM.substring(1);
+            cmdM.remove(0, 1);
             to = parseInt(cmdM);
-            cmdM = cmdM.substring(parseIntCharsToBurn(cmdM));
+            cmdM.remove(0, parseIntCharsToBurn(cmdM));
             if (to < from) {
               to = from;
             }
@@ -206,7 +400,7 @@ void serialHandle(){
           }
         }
         saveLast();
-        cmdM = cmdM.substring(1); //burn space
+        cmdM.remove(0, 1); //burn space
         uint16_t del = parseInt(cmdM);
         for (uint8_t id = from; id <= to; id++) {
           if((parity == 2) || (parity == id % 2)){
@@ -221,8 +415,10 @@ void serialHandle(){
         }
       } else if (cmdM.startsWith("wrt")) {
         saveEEPROM();
+        Serial.println("> Done.");
       } else if (cmdM.startsWith("rgb")) {
-        c(parseInt(cmdM.substring(4)), false);
+        cmdM.remove(0, 4);
+        c(parseInt(cmdM), false);
       } else if (cmdM.startsWith("set")) {
         saveLast();
         uint8_t from = 0;
@@ -234,25 +430,25 @@ void serialHandle(){
         uint8_t fromY = 0;
         uint8_t toY = MATRIX_HEIGHT - 1;
         uint8_t parityY = 2;
-        cmdM = cmdM.substring(4);
+        cmdM.remove(0, 4);
         if(cmdM.startsWith("o")) {
           parity = 1;
-          cmdM = cmdM.substring(1);
+          cmdM.remove(0, 1);
         } else if (cmdM.startsWith("e")) {
           parity = 0;
-          cmdM = cmdM.substring(1);
+          cmdM.remove(0, 1);
         }
         if (cmdM.startsWith("*")){
           from = 0;
           to = FRAME_COUNT;
-          cmdM = cmdM.substring(1);
+          cmdM.remove(0, 1);
         } else {
           from = parseInt(cmdM);
-          cmdM = cmdM.substring(parseIntCharsToBurn(cmdM));
+          cmdM.remove(0, parseIntCharsToBurn(cmdM));
           if (cmdM.startsWith("-")) {
-            cmdM = cmdM.substring(1);
+            cmdM.remove(0, 1);
             to = parseInt(cmdM);
-            cmdM = cmdM.substring(parseIntCharsToBurn(cmdM));
+            cmdM.remove(0, parseIntCharsToBurn(cmdM));
             if (to < from) {
               to = from;
             }
@@ -261,25 +457,25 @@ void serialHandle(){
           }
         }
 
-        cmdM = cmdM.substring(1); //burn space
+        cmdM.remove(0, 1); //burn space
         if (cmdM.startsWith("(")) {
-          cmdM = cmdM.substring(1);
+          cmdM.remove(0, 1);
           if(cmdM.startsWith("o")) {
             parityX = 1;
-            cmdM = cmdM.substring(1);
+            cmdM.remove(0, 1);
           } else if (cmdM.startsWith("e")) {
             parityX = 0;
-            cmdM = cmdM.substring(1);
+            cmdM.remove(0, 1);
           }
           if (cmdM.startsWith("*")){
-            cmdM = cmdM.substring(1);
+            cmdM.remove(0, 1);
           } else {
             fromX = parseInt(cmdM);
-            cmdM = cmdM.substring(parseIntCharsToBurn(cmdM));
+            cmdM.remove(0, parseIntCharsToBurn(cmdM));
             if (cmdM.startsWith("-")) {
-              cmdM = cmdM.substring(1);
+              cmdM.remove(0, 1);
               toX = parseInt(cmdM);
-              cmdM = cmdM.substring(parseIntCharsToBurn(cmdM));
+              cmdM.remove(0, parseIntCharsToBurn(cmdM));
               if (toX < fromX) {
                 toX = fromX;
               }
@@ -288,23 +484,23 @@ void serialHandle(){
             }
           }
 
-          cmdM = cmdM.substring(2); //burn comma and space
+          cmdM.remove(0, 2); //burn comma and space
           if(cmdM.startsWith("o")) {
             parityY = 1;
-            cmdM = cmdM.substring(1);
+            cmdM.remove(0, 1);
           } else if (cmdM.startsWith("e")) {
             parityY = 0;
-            cmdM = cmdM.substring(1);
+            cmdM.remove(0, 1);
           }
           if (cmdM.startsWith("*")){
-            cmdM = cmdM.substring(1);
+            cmdM.remove(0, 1);
           } else {
             fromY = parseInt(cmdM);
-            cmdM = cmdM.substring(parseIntCharsToBurn(cmdM));
+            cmdM.remove(0, parseIntCharsToBurn(cmdM));
             if (cmdM.startsWith("-")) {
-              cmdM = cmdM.substring(1);
+              cmdM.remove(0, 1);
               toY = parseInt(cmdM);
-              cmdM = cmdM.substring(parseIntCharsToBurn(cmdM));
+              cmdM.remove(0, parseIntCharsToBurn(cmdM));
               if (toY < fromY) {
                 toY = fromY;
               }
@@ -312,7 +508,7 @@ void serialHandle(){
               toY = fromY;
             }
           }
-          cmdM = cmdM.substring(2);
+          cmdM.remove(0, 2);
         }
 
         uint16_t col = parseInt(cmdM);
@@ -340,7 +536,7 @@ void serialHandle(){
         Serial.println(".");
       } else if (cmdM.startsWith("export")) {
         Serial.println("> Export: ");
-        if(cmdM.substring(7).startsWith("--program")) {
+        if(cmdM.startsWith("export --program")) {
           Serial.print("#define LED_COUNT ");
           Serial.println(LED_COUNT);
           Serial.print("#define FRAME_COUNT ");
@@ -366,7 +562,7 @@ void serialHandle(){
           Serial.print(d != FRAME_COUNT - 1 ? "},\n" : "}\n");
         }
         Serial.println("};");
-        if(cmdM.substring(7).startsWith("--program")) {
+        if(cmdM.startsWith("export --program")) {
           Serial.print(F(R"(
 void setup()
 {
@@ -395,11 +591,12 @@ void loop()
         loadLast();
         Serial.println("> Last changes undone.");
       } else if (cmdM.startsWith("idx")) {
-        cmdM = cmdM.substring(4);
+        cmdM.remove(0, 4);
         uint8_t x, y, ind = 0;
         if(cmdM.startsWith("(")) {
+          cmdM.remove(0, 1);
           x = parseInt(cmdM);
-          cmdM = cmdM.substring(parseIntCharsToBurn(cmdM) + 2);
+          cmdM.remove(0, parseIntCharsToBurn(cmdM) + 2);
           y = parseInt(cmdM);
           ind = xyToIndex(x, y);
         } else {
@@ -407,9 +604,12 @@ void loop()
           x = indToX(ind);
           y = indToY(ind);
         }
-        Serial.print("> LED with index " + ind);
-        Serial.print(" is at (" + x);
-        Serial.print(", " + y);
+        Serial.print(F("> LED with index "));
+        Serial.print(ind);
+        Serial.print(F(" is at ("));
+        Serial.print(x);
+        Serial.print(F(", "));
+        Serial.print(y);
         Serial.println(").");
       } else if (cmdM.startsWith("mtx")) {
         bool printNums = false;
@@ -420,7 +620,7 @@ void loop()
         }
         if(cmdM[4] == '-' && cmdM[5] == 'c'){
           printCols = true;
-          cmdM = cmdM.substring(7);
+          cmdM.remove(0, 7);
           printFrame = parseInt(cmdM);
         }
         Serial.println("> Matrix:");
@@ -440,7 +640,9 @@ void loop()
           Serial.println();
         }
       } else {
-        Serial.println("> Command `" + extractCmd(cmd) + "` not recognized.");
+        Serial.print(F("> Command `"));
+        Serial.print(extractCmd(cmd));
+        Serial.println(F("` not recognized."));
       }
       cmd = cmdNext;
       Serial.println(mustReParse ? "&&" : "");

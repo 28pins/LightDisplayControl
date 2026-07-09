@@ -27,7 +27,11 @@ void setup()
   Serial.println(F("> Version 0.0.0 [beta]"));
   Serial.println(F("> **Warning:** Set line ending to `New Line` for proper parsing."));
   Serial.println(F("> Type `help` for help"));
-  Serial.println("> Currently configured with " + String(LED_COUNT) + " LEDs and " + String(FRAME_COUNT) + " frames.  Feature flags: cacheCmds: NO; textDisp: NO; WiFi: NO");
+  Serial.print(F("> Currently configured with "));
+  Serial.print(LED_COUNT);
+  Serial.print(F(" LEDs and "));
+  Serial.print(FRAME_COUNT);
+  Serial.println(F(" frames.  Feature flags: cacheCmds: NO; textDisp: NO; WiFi: NO"));
   toggleBuiltin();
   if (loadEEPROM())
   {
@@ -49,33 +53,22 @@ void loop()
   for (uint8_t i = 0; i < FRAME_COUNT; i++)
   {
     if(cycleDelay[i] == 254) { //Text flag
-      for (uint8_t j = 1; j < LED_COUNT; j++) {
-        if (colors[i][j] == 0) {
-          break;
-        } else {
-          //textLoop(i, j);
-          serialHandle();
-        }
-      }
+      textLoop(i);
+      serialHandle();
     } else {
       if(cycleDelay[i] != 0){
         colorLoop(i);
-        toggleBuiltin();
       }
       bm = cycleDelay[i];
       if (bm > 0){
-        while(bm > 3000){
+        digitalWrite(LED_BUILTIN, HIGH);
+        if(bm > 500) {
+          delay(500);
+        }
+        while(bm > 200){
           toggleBuiltin();
-          delay(50);
-          toggleBuiltin();
-          delay(50);
-          toggleBuiltin();
-          delay(50);
-          toggleBuiltin();
-          delay(50);
-          toggleBuiltin();
-          delay(50);
-          bm -= 500;
+          delay(200);
+          bm -= 200;
           serialHandle();
         }
         delay(bm);
